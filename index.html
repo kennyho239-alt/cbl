@@ -1,0 +1,696 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>中国台球俱乐部职业联赛</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:'PingFang SC','Microsoft YaHei','Helvetica Neue',sans-serif}
+body{background:#f0f2f5;min-height:100vh;color:#1e293b;font-size:13px}
+.app{max-width:960px;margin:0 auto;padding:8px 8px 60px}
+.hd{background:linear-gradient(135deg,#1e1b4b,#312e81);color:#fff;padding:14px 16px;position:sticky;top:0;z-index:100;display:flex;justify-content:space-between;align-items:center;box-shadow:0 2px 8px rgba(0,0,0,0.15)}
+.hd h1{font-size:16px;font-weight:700}
+.hd .sb{font-size:10px;color:#a5b4fc;margin-top:1px}
+.card{background:#fff;border-radius:8px;margin-bottom:8px;box-shadow:0 1px 3px rgba(0,0,0,0.06)}
+.card-hd{padding:10px 12px;border-bottom:1px solid #e2e8f0;font-size:13px;font-weight:700;color:#1e1b4b}
+.card-bd{padding:0;overflow-x:auto}
+table.excel{width:100%;border-collapse:collapse;font-size:10px;min-width:700px}
+table.excel th,table.excel td{padding:3px 2px;text-align:center;border:1px solid #d0d5dd}
+table.excel thead th{background:#1e1b4b;color:#fff;font-weight:600;font-size:9px;white-space:nowrap}
+table.excel thead tr.sub th{background:#312e81;color:#c7d2fe;font-size:8px}
+table.excel tbody tr:nth-child(even){background:#f8fafc}
+table.excel tbody tr:hover{background:#eef2ff}
+.rank-1{background:#fefce8!important}.rank-2{background:#f0fdf4!important}
+.group-divider{background:#eef2ff!important;font-weight:700;font-size:10px;color:#4338ca}
+input,select{padding:5px 8px;font-size:12px;border:1px solid #d0d5dd;border-radius:4px;outline:none}
+input:focus,select:focus{border-color:#6366f1;box-shadow:0 0 0 2px rgba(99,102,241,0.12)}
+button{display:inline-flex;align-items:center;gap:3px;padding:5px 12px;font-size:12px;background:#6366f1;color:#fff;border:none;border-radius:4px;cursor:pointer}
+button:hover{background:#4f46e5}
+.badge-s{display:inline-block;background:#eef2ff;color:#4338ca;padding:1px 5px;border-radius:3px;font-size:9px}
+.badge-h{display:inline-block;background:#fef3c7;color:#92400e;padding:1px 5px;border-radius:3px;font-size:9px}
+@media(max-width:600px){table.excel{font-size:8px}table.excel th,table.excel td{padding:2px 1px}}
+.password-overlay{position:fixed;top:0;left:0;width:100%;height:100%;z-index:99999;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#0f0c29,#302b63,#24243e)}
+.password-box{background:rgba(255,255,255,0.95);border-radius:16px;padding:30px;width:320px;max-width:90vw;box-shadow:0 20px 60px rgba(0,0,0,0.3);text-align:center}
+.password-box h2{font-size:18px;color:#1e1b4b;margin-bottom:6px}
+.password-box p{font-size:12px;color:#64748b;margin-bottom:20px}
+.password-box input{display:block;width:100%;padding:12px;border:2px solid #e2e8f0;border-radius:10px;font-size:16px;text-align:center;outline:none;transition:border-color .2s}
+.password-box input:focus{border-color:#6366f1}
+.password-box button{display:block;width:100%;padding:12px;border:none;border-radius:10px;font-size:15px;font-weight:600;color:#fff;background:linear-gradient(135deg,#6366f1,#8b5cf6);cursor:pointer;margin-top:12px}
+.password-box .error{color:#ef4444;font-size:12px;margin-top:8px;min-height:20px}
+.password-hint{font-size:10px;color:#94a3b8;margin-top:12px}
+
+<div id="cblDebug" style="position:fixed;top:0;right:0;z-index:99998;font-size:10px;background:#1a1a2e;color:#00ff88;padding:4px 8px;border-radius:0 0 0 6px;font-family:monospace;display:flex;gap:8px;align-items:center">
+  <span id="cblDebugStatus">🔌 检测中...</span>
+  <span id="cblDebugDataCount"></span>
+  <button onclick="cblForceSync()" style="font-size:9px;padding:2px 6px;background:#6366f1;color:#fff;border:none;border-radius:3px;cursor:pointer">🔄 手动同步</button>
+</div>
+</style>
+</head>
+<body>
+<div class="app">
+<div class="hd"><h1>中国台球俱乐部职业联赛</h1><div class="sb">2026年CBL联赛数据统计系统</div><<button onclick="exportData()" style="font-size:10px;padding:3px 8px;margin-left:6px">📤导出</button>/div>
+<div id="pwdOverlay" class="password-overlay">
+  <div class="password-box">
+    <h2>CBL联赛管理系统</h2>
+    <p>请输入访问密码</p>
+    <input type="password" id="pwdInput" placeholder="输入密码" onkeydown="if(event.key==='Enter')verifyPwd()" autofocus>
+    <button onclick="verifyPwd()">进入系统</button>
+    <div id="pwdError" class="error"></div>
+  <div id="cblDebug2" style="font-size:10px;color:#94a3b8;margin-top:8px">☁️ 云端连接检测中...</div>
+    
+  </div>
+</div>
+
+<div id="root" style="display:none"></div>
+<script>
+var K='cbl12';
+var TEAMS=[{nm:"华舰国际俱乐部",g:"A",c:"#6366f1",bb:[],ss:["周跃龙","马海龙","王翊桐","杨蒙","陈飞龙","陈睿夫","王宇航","蔡伟"],hh:["刘夏芝","裴华夏"]},{nm:"圣森俱乐部",g:"A",c:"#10b981",bb:["刘子铃","毛继承","刘宏宇","刘文炜","任家星","胡佳运","那鲁茶·菲弗尔"],ss:[],hh:[]},{nm:"小熊猫俱乐部",g:"A",c:"#f59e0b",bb:["王也","邱炮谋"],ss:["梅希文","万杰","孙源泽","莫甜甜","周一尘"],hh:[]},{nm:"康溪盛世俱乐部",g:"A",c:"#ef4444",bb:["石汉青","何文冲"],ss:["范争一","陈惠淋","索菲亚·别尔坚科","刘屹骑"],hh:["楚秉杰","唐春晓","郑凯"]},{nm:"恺畅俱乐部",g:"B",c:"#ec4899",bb:[],ss:["曹泽裔","董子豪","潘奕铭"],hh:["牛壮","何世威","陈其雨","韩芳","何丹妮","邱伊君","王春燕","李赫文"]},{nm:"北京星牌俱乐部",g:"B",c:"#8b5cf6",bb:["黎亭","陈文","张超"],ss:["塔猜亚·乌诺","贺国强","高阳","黄佳浩","熊然","刘韦壹路"],hh:["付小芳","杨绍杰","王云","陈晓玉","杨彪"]},{nm:"上海久狮俱乐部",g:"B",c:"#14b8a6",bb:["徐嘉锐","张驰","马赓"],ss:["袁思俊","龙泽煌","姚东成","李碧涵","史琳睿"],hh:["吴玉梅"]},{nm:"浙江久鼎俱乐部",g:"B",c:"#f97316",bb:["樊朗彤","潘蓝天"],ss:["周金豪","邓壕辉","徐健豪"],hh:["代勇","郑肖淮","赵岩昊"]}];
+var A_S=['混合团体','男子单打','男子双打','混合双打'];
+var B_S=['男子双打','混合双打','男子单打','混合团体'];
+var REF_FULL=[{nm:"孙跃",sex:"女",cat:"正选"},{nm:"梁燕",sex:"女",cat:"正选"},{nm:"刘丽男",sex:"女",cat:"正选"},{nm:"诸瑛",sex:"女",cat:"正选"},{nm:"郑伟利",cat:"正选"},{nm:"张毅",cat:"正选"},{nm:"周冰峰",cat:"正选"},{nm:"戴亮",cat:"正选"},{nm:"王海涛",cat:"正选"},{nm:"汪炜",cat:"正选"},{nm:"刘杨",cat:"正选"},{nm:"邓跃源",cat:"正选"},{nm:"邓志宏",cat:"正选"},{nm:"吕智维",sex:"女",cat:"正选"},{nm:"盛捷",cat:"正选"},{nm:"何国荣",cat:"正选"},{nm:"谢艺新",cat:"正选"},{nm:"张涛",cat:"正选"},{nm:"康涌",cat:"正选"},{nm:"孙延谦",cat:"正选"},{nm:"周士明",cat:"候选"},{nm:"李珍",sex:"女",cat:"候选"},{nm:"李辉",cat:"候选"},{nm:"张宁",cat:"候选"},{nm:"秦溱臻",sex:"女",cat:"候选"},{nm:"陈涛",cat:"候选"},{nm:"罗冠千",cat:"候选"},{nm:"周彦汐",sex:"女",cat:"候选"}];
+var SD=[];
+var ST=[{"grp": "A", "rk": 1, "team": "华舰国际俱乐部", "pts": 0, "w": 0, "wS": 0, "wH": 0, "l": 0, "lS": 0, "lH": 0, "gwS": 0, "gwH": 0, "glS": 0, "glH": 0, "wr": 0, "tw": 0, "twS": 0, "twH": 0, "mdw": 0, "mdwS": 0, "mdwH": 0, "mbw": 0, "mbwS": 0, "mbwH": 0, "sdw": 0, "sdwS": 0, "sdwH": 0}, {"grp": "A", "rk": 2, "team": "圣森俱乐部", "pts": 0, "w": 0, "wS": 0, "wH": 0, "l": 0, "lS": 0, "lH": 0, "gwS": 0, "gwH": 0, "glS": 0, "glH": 0, "wr": 0, "tw": 0, "twS": 0, "twH": 0, "mdw": 0, "mdwS": 0, "mdwH": 0, "mbw": 0, "mbwS": 0, "mbwH": 0, "sdw": 0, "sdwS": 0, "sdwH": 0}, {"grp": "A", "rk": 3, "team": "小熊猫俱乐部", "pts": 0, "w": 0, "wS": 0, "wH": 0, "l": 0, "lS": 0, "lH": 0, "gwS": 0, "gwH": 0, "glS": 0, "glH": 0, "wr": 0, "tw": 0, "twS": 0, "twH": 0, "mdw": 0, "mdwS": 0, "mdwH": 0, "mbw": 0, "mbwS": 0, "mbwH": 0, "sdw": 0, "sdwS": 0, "sdwH": 0}, {"grp": "A", "rk": 4, "team": "康溪盛世俱乐部", "pts": 0, "w": 0, "wS": 0, "wH": 0, "l": 0, "lS": 0, "lH": 0, "gwS": 0, "gwH": 0, "glS": 0, "glH": 0, "wr": 0, "tw": 0, "twS": 0, "twH": 0, "mdw": 0, "mdwS": 0, "mdwH": 0, "mbw": 0, "mbwS": 0, "mbwH": 0, "sdw": 0, "sdwS": 0, "sdwH": 0}, {"grp": "B", "rk": 1, "team": "恺畅俱乐部", "pts": 0, "w": 0, "wS": 0, "wH": 0, "l": 0, "lS": 0, "lH": 0, "gwS": 0, "gwH": 0, "glS": 0, "glH": 0, "wr": 0, "tw": 0, "twS": 0, "twH": 0, "mdw": 0, "mdwS": 0, "mdwH": 0, "mbw": 0, "mbwS": 0, "mbwH": 0, "sdw": 0, "sdwS": 0, "sdwH": 0}, {"grp": "B", "rk": 2, "team": "北京星牌俱乐部", "pts": 0, "w": 0, "wS": 0, "wH": 0, "l": 0, "lS": 0, "lH": 0, "gwS": 0, "gwH": 0, "glS": 0, "glH": 0, "wr": 0, "tw": 0, "twS": 0, "twH": 0, "mdw": 0, "mdwS": 0, "mdwH": 0, "mbw": 0, "mbwS": 0, "mbwH": 0, "sdw": 0, "sdwS": 0, "sdwH": 0}, {"grp": "B", "rk": 3, "team": "上海久狮俱乐部", "pts": 0, "w": 0, "wS": 0, "wH": 0, "l": 0, "lS": 0, "lH": 0, "gwS": 0, "gwH": 0, "glS": 0, "glH": 0, "wr": 0, "tw": 0, "twS": 0, "twH": 0, "mdw": 0, "mdwS": 0, "mdwH": 0, "mbw": 0, "mbwS": 0, "mbwH": 0, "sdw": 0, "sdwS": 0, "sdwH": 0}, {"grp": "B", "rk": 4, "team": "浙江久鼎俱乐部", "pts": 0, "w": 0, "wS": 0, "wH": 0, "l": 0, "lS": 0, "lH": 0, "gwS": 0, "gwH": 0, "glS": 0, "glH": 0, "wr": 0, "tw": 0, "twS": 0, "twH": 0, "mdw": 0, "mdwS": 0, "mdwH": 0, "mbw": 0, "mbwS": 0, "mbwH": 0, "sdw": 0, "sdwS": 0, "sdwH": 0}]; // 8支俱乐部初始数据（按Excel赛程表）
+function pushSD(a){a.forEach(function(x){SD.push(x);});}
+pushSD([
+  {t1:'华舰国际俱乐部',t2:'康溪盛世俱乐部',d:'5.20-5.23',p:'S'},
+  {t1:'圣森俱乐部',t2:'小熊猫俱乐部',d:'5.20-5.23',p:'S'},
+  {t1:'华舰国际俱乐部',t2:'小熊猫俱乐部',d:'5.27-5.30',p:'S'},
+  {t1:'圣森俱乐部',t2:'康溪盛世俱乐部',d:'5.27-5.30',p:'S'},
+  {t1:'华舰国际俱乐部',t2:'圣森俱乐部',d:'6.3-6.6',p:'S'},
+  {t1:'小熊猫俱乐部',t2:'康溪盛世俱乐部',d:'6.3-6.6',p:'S'},
+  {t1:'康溪盛世俱乐部',t2:'小熊猫俱乐部',d:'6.10-6.13',p:'S'},
+  {t1:'圣森俱乐部',t2:'华舰国际俱乐部',d:'6.10-6.13',p:'S'},
+  {t1:'康溪盛世俱乐部',t2:'华舰国际俱乐部',d:'6.24-6.27',p:'S'},
+  {t1:'小熊猫俱乐部',t2:'圣森俱乐部',d:'6.24-6.27',p:'S'},
+  {t1:'康溪盛世俱乐部',t2:'圣森俱乐部',d:'7.1-7.4',p:'S'},
+  {t1:'小熊猫俱乐部',t2:'华舰国际俱乐部',d:'7.1-7.4',p:'S'},
+  {t1:'恺畅俱乐部',t2:'浙江久鼎俱乐部',d:'5.24-5.27',p:'S'},
+  {t1:'北京星牌俱乐部',t2:'上海久狮俱乐部',d:'5.24-5.27',p:'S'},
+  {t1:'恺畅俱乐部',t2:'北京星牌俱乐部',d:'5.31-6.3',p:'S'},
+  {t1:'上海久狮俱乐部',t2:'浙江久鼎俱乐部',d:'5.31-6.3',p:'S'},
+  {t1:'北京星牌俱乐部',t2:'恺畅俱乐部',d:'6.7-6.10',p:'S'},
+  {t1:'浙江久鼎俱乐部',t2:'上海久狮俱乐部',d:'6.7-6.10',p:'S'},
+  {t1:'上海久狮俱乐部',t2:'恺畅俱乐部',d:'6.21-6.24',p:'S'},
+  {t1:'北京星牌俱乐部',t2:'浙江久鼎俱乐部',d:'6.21-6.24',p:'S'},
+  {t1:'上海久狮俱乐部',t2:'北京星牌俱乐部',d:'6.28-7.1',p:'S'},
+  {t1:'浙江久鼎俱乐部',t2:'恺畅俱乐部',d:'6.28-7.1',p:'S'},
+  {t1:'恺畅俱乐部',t2:'上海久狮俱乐部',d:'7.5-7.8',p:'S'},
+  {t1:'浙江久鼎俱乐部',t2:'北京星牌俱乐部',d:'7.5-7.8',p:'S'},
+  {t1:'华舰国际俱乐部',t2:'康溪盛世俱乐部',d:'7.19-7.22',p:'H'},
+  {t1:'圣森俱乐部',t2:'小熊猫俱乐部',d:'7.19-7.22',p:'H'},
+  {t1:'康溪盛世俱乐部',t2:'小熊猫俱乐部',d:'7.26-7.29',p:'H'},
+  {t1:'圣森俱乐部',t2:'华舰国际俱乐部',d:'7.26-7.29',p:'H'},
+  {t1:'小熊猫俱乐部',t2:'华舰国际俱乐部',d:'8.2-8.5',p:'H'},
+  {t1:'圣森俱乐部',t2:'康溪盛世俱乐部',d:'8.2-8.5',p:'H'},
+  {t1:'康溪盛世俱乐部',t2:'华舰国际俱乐部',d:'8.16-8.19',p:'H'},
+  {t1:'小熊猫俱乐部',t2:'圣森俱乐部',d:'8.16-8.19',p:'H'},
+  {t1:'华舰国际俱乐部',t2:'圣森俱乐部',d:'8.30-9.2',p:'H'},
+  {t1:'小熊猫俱乐部',t2:'康溪盛世俱乐部',d:'8.30-9.2',p:'H'},
+  {t1:'华舰国际俱乐部',t2:'小熊猫俱乐部',d:'9.6-9.9',p:'H'},
+  {t1:'康溪盛世俱乐部',t2:'圣森俱乐部',d:'9.6-9.9',p:'H'},
+  {t1:'上海久狮俱乐部',t2:'浙江久鼎俱乐部',d:'7.22-7.25',p:'H'},
+  {t1:'北京星牌俱乐部',t2:'恺畅俱乐部',d:'7.22-7.25',p:'H'},
+  {t1:'恺畅俱乐部',t2:'北京星牌俱乐部',d:'7.29-8.1',p:'H'},
+  {t1:'浙江久鼎俱乐部',t2:'上海久狮俱乐部',d:'7.29-8.1',p:'H'},
+  {t1:'恺畅俱乐部',t2:'上海久狮俱乐部',d:'8.5-8.8',p:'H'},
+  {t1:'浙江久鼎俱乐部',t2:'北京星牌俱乐部',d:'8.5-8.8',p:'H'},
+  {t1:'上海久狮俱乐部',t2:'北京星牌俱乐部',d:'8.19-8.22',p:'H'},
+  {t1:'恺畅俱乐部',t2:'浙江久鼎俱乐部',d:'8.19-8.22',p:'H'},
+  {t1:'上海久狮俱乐部',t2:'恺畅俱乐部',d:'9.2-9.5',p:'H'},
+  {t1:'北京星牌俱乐部',t2:'浙江久鼎俱乐部',d:'9.2-9.5',p:'H'},
+  {t1:'北京星牌俱乐部',t2:'上海久狮俱乐部',d:'9.9-9.12',p:'H'},
+  {t1:'浙江久鼎俱乐部',t2:'恺畅俱乐部',d:'9.9-9.12',p:'H'}
+]);
+
+
+function gt(n){return TEAMS.find(function(t){return t.nm===n});}
+function ap(nm){var t=gt(nm);if(!t)return[];return[].concat(t.bb||[],t.ss||[],t.hh||[]);}
+function gd(m){var a=gt(m.t1)&&gt(m.t1).g==="A";var p=m.d.split("-"),sm=parseInt(p[0].split(".")[0]),sd=parseInt(p[0].split(".")[1]),d=[];if(a){d.push({date:sm+"."+(sd+1),event:"混合团体"});d.push({date:sm+"."+(sd+2),event:"男子单打"});d.push({date:sm+"."+(sd+3),event:"男子双打"});d.push({date:sm+"."+(sd+3),event:"混合双打"});}else{d.push({date:sm+"."+(sd),event:"男子双打"});d.push({date:sm+"."+(sd),event:"混合双打"});d.push({date:sm+"."+(sd+1),event:"男子单打"});d.push({date:sm+"."+(sd+2),event:"混合团体"});}return d;}function lr(){try{return JSON.parse(localStorage.getItem(K))||{};}catch(e){return{};}}
+function sr(r){localStorage.setItem(K,JSON.stringify(r));}
+
+var gAP;var gAP;var gAP;
+function showPlayerDetail(pn){
+var p=gAP?gAP.find(function(x){return x.n===pn;}):null;if(!p)return;
+var R=lr();
+// Find all matches where this player appears
+var matches=[];
+SD.forEach(function(m){
+var days=gd(m);
+days.forEach(function(d,i){
+var v=R[m.t1+'|'+m.t2+'|'+m.d+'|'+m.p];if(!v)v=R[m.t1+'|'+m.t2+'|'+m.d+'|'+m.p];
+if(!v)return;
+var vd=v['d'+i];if(!vd||!vd[2])return;
+var f1=vd[2],f2=vd[3];
+var found=false,side='';
+if(f1&&f1.length){for(var fi=0;fi<f1.length;fi++){if(f1[fi]===pn){found=true;side='A';break;}}}
+if(!found&&f2&&f2.length){for(var fi=0;fi<f2.length;fi++){if(f2[fi]===pn){found=true;side='B';break;}}}
+if(found){
+var tnA=m.t1.replace(/台球俱乐部/,''),tnB=m.t2.replace(/台球俱乐部/,'');
+var s1_=vd[4]||[],s2_=vd[5]||[],t1=0,t2=0;for(var fi=0;fi<5;fi++){var a=parseInt(s1_[fi])||0,b=parseInt(s2_[fi])||0;if(a>0||b>0){if(a>b)t1++;else t2++;}}
+var nd=[],s1=vd[4]||[],s2=vd[5]||[],c1=vd[6]||[],c2=vd[7]||[];
+for(var fi=0;fi<5;fi++){
+var sc=(s1[fi]||'')+'-'+(s2[fi]||'');
+if(s1[fi]==null&&s2[fi]==null)sc='';
+var ca=(c1[fi]|0),cb=(c2[fi]|0),cc='';
+if(ca>0)cc+='A单杆100+('+ca+')';
+if(cb>0){if(cc)cc+=' ';cc+='B单杆100+('+cb+')';}
+nd.push({sc:sc,cent:cc});
+}
+matches.push({date:d.date,event:d.event,side:side,tA:tnA,tB:tnB,sc:t1+'-'+t2,sub:nd});
+}
+});
+});
+// Build HTML
+var oh='<div style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.4);z-index:9999;display:flex;align-items:center;justify-content:center" onclick="this.remove()"><div style="background:#fff;border-radius:12px;padding:14px;max-width:520px;width:90%;max-height:82vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,0.2)" onclick="event.stopPropagation()"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><div><b style="font-size:16px">'+pn+'</b><span style="font-size:11px;color:#888;margin-left:8px">'+(p.tm||'').replace(/台球俱乐部/,'')+'</span><span style="font-size:11px;color:#888;margin-left:8px">'+(p.cat||'')+'</span></div><button onclick="this.closest(\x27div[onclick]\x27).remove()" style="background:none;border:none;font-size:20px;cursor:pointer;padding:0 2px">x</button></div>';
+if(!matches.length){oh+='<div style="padding:16px;text-align:center;color:#999;font-size:13px">暂无比赛数据</div></div></div>';document.body.insertAdjacentHTML("beforeend",oh);return;}
+oh+='<div style="font-size:11px;color:#666;margin-bottom:8px">共参加 '+matches.length+'场比赛</div>';
+matches.forEach(function(mt,mi){
+oh+='<div style="border:1px solid #e0e7ff;border-radius:8px;margin-bottom:8px;padding:8px">';
+oh+='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">';
+oh+='<span style="font-weight:600;font-size:12px">'+mt.tA+' <span style="color:#888;font-weight:400;font-size:11px">vs</span> '+mt.tB+'</span>';
+oh+='<span style="font-size:11px;color:#666;background:#f0f4ff;padding:2px 6px;border-radius:4px">'+mt.date+'</span></div>';
+oh+='<div style="font-size:11px;color:#6366f1;margin-bottom:4px">'+mt.event+'</div>';
+oh+='<div style="font-size:13px;font-weight:600;margin-bottom:4px">大比分: '+mt.sc+' <span style="font-size:11px;font-weight:400;color:#888;margin-left:4px">('+(mt.side==='A'?mt.tA:mt.tB)+'</span></div>';
+oh+='<table style="width:100%;border-collapse:collapse;font-size:11px">';
+oh+='<tr style="background:#f8f9fa"><th style="padding:3px 4px;border:1px solid #dee2e6;text-align:center">局</th><th style="padding:3px 4px;border:1px solid #dee2e6;text-align:center">比分</th><th style="padding:3px 4px;border:1px solid #dee2e6;text-align:center">单杆100+</th></tr>';
+mt.sub.forEach(function(fr,fi){
+if(!fr.sc&&!fr.cent)return;
+oh+='<tr><td style="padding:3px 4px;border:1px solid #dee2e6;text-align:center">'+(fi+1)+'</td>';
+oh+='<td style="padding:3px 4px;border:1px solid #dee2e6;text-align:center;font-weight:600">'+fr.sc+'</td>';
+oh+='<td style="padding:3px 4px;border:1px solid #dee2e6;text-align:center;color:#b45309;font-weight:600">'+fr.cent+'</td></tr>';
+});
+oh+='</table></div>';
+});
+oh+='</div></div>';document.body.insertAdjacentHTML("beforeend",oh);
+}
+function pfFilter(){
+var team=document.getElementById("pfTeam")?document.getElementById("pfTeam").value:"";
+var cat=document.getElementById("pfCat")?document.getElementById("pfCat").value:"";
+var d=document.getElementById("pfResult");var cnt=document.getElementById("pfCnt2");
+if(!d)return;var f=gAP||[];
+if(team)f=f.filter(function(p){return p.tm===team;});
+if(cat)f=f.filter(function(p){return p.cat===cat||p.cat.indexOf(cat)>=0;});
+f.sort(function(a,b){var ga=a.totG,gb=b.totG;if(gb!==ga)return gb-ga;return a.n.localeCompare(b.n);});
+cnt.innerHTML=f.length+"位球员";
+if(!f.length){d.innerHTML='<div style="padding:20px;text-align:center;color:#999">无数据</div>';return;}
+function tc(v){return v==null?0:v;}
+var h='<div style="overflow-x:auto;width:100%"><table style="width:100%;border-collapse:collapse;font-size:11px;min-width:900px">';
+h+='<tr style="background:#f0f4ff"><th rowspan="2" style="padding:4px 3px;text-align:left;border:1px solid #e0e7ff">球员</th><th rowspan="2" style="padding:4px 3px;text-align:center;border:1px solid #e0e7ff;font-size:10px">俱乐部</th><th rowspan="2" style="padding:4px 3px;text-align:center;border:1px solid #e0e7ff;font-size:10px">参赛项目</th><th colspan="3" style="padding:4px 2px;text-align:center;border:1px solid #e0e7ff;font-size:10px">总参赛场次</th><th colspan="3" style="padding:4px 2px;text-align:center;border:1px solid #e0e7ff;font-size:10px">混合团体</th><th colspan="3" style="padding:4px 2px;text-align:center;border:1px solid #e0e7ff;font-size:10px">混双</th><th colspan="3" style="padding:4px 2px;text-align:center;border:1px solid #e0e7ff;font-size:10px">男双</th><th colspan="3" style="padding:4px 2px;text-align:center;border:1px solid #e0e7ff;font-size:10px">男单</th><th colspan="3" style="padding:4px 2px;text-align:center;border:1px solid #e0e7ff;font-size:10px">总参赛局数</th><th colspan="3" style="padding:4px 2px;text-align:center;border:1px solid #e0e7ff;font-size:10px">胜局数</th><th colspan="3" style="padding:4px 2px;text-align:center;border:1px solid #e0e7ff;font-size:10px">负局数</th><th rowspan="2" style="padding:4px 3px;text-align:center;border:1px solid #e0e7ff;font-size:10px">单杆100+</th></tr>';
+h+='<tr style="background:#e0e7ff"><th style="padding:2px;text-align:center;border:1px solid #e0e7ff;font-size:9px">总</th><th style="padding:2px;text-align:center;border:1px solid #e0e7ff;font-size:9px">斯</th><th style="padding:2px;text-align:center;border:1px solid #e0e7ff;font-size:9px">华</th><th style="padding:2px;text-align:center;border:1px solid #e0e7ff;font-size:9px">总</th><th style="padding:2px;text-align:center;border:1px solid #e0e7ff;font-size:9px">斯</th><th style="padding:2px;text-align:center;border:1px solid #e0e7ff;font-size:9px">华</th><th style="padding:2px;text-align:center;border:1px solid #e0e7ff;font-size:9px">总</th><th style="padding:2px;text-align:center;border:1px solid #e0e7ff;font-size:9px">斯</th><th style="padding:2px;text-align:center;border:1px solid #e0e7ff;font-size:9px">华</th><th style="padding:2px;text-align:center;border:1px solid #e0e7ff;font-size:9px">总</th><th style="padding:2px;text-align:center;border:1px solid #e0e7ff;font-size:9px">斯</th><th style="padding:2px;text-align:center;border:1px solid #e0e7ff;font-size:9px">华</th><th style="padding:2px;text-align:center;border:1px solid #e0e7ff;font-size:9px">总</th><th style="padding:2px;text-align:center;border:1px solid #e0e7ff;font-size:9px">斯</th><th style="padding:2px;text-align:center;border:1px solid #e0e7ff;font-size:9px">华</th><th style="padding:2px;text-align:center;border:1px solid #e0e7ff;font-size:9px">总</th><th style="padding:2px;text-align:center;border:1px solid #e0e7ff;font-size:9px">斯</th><th style="padding:2px;text-align:center;border:1px solid #e0e7ff;font-size:9px">华</th><th style="padding:2px;text-align:center;border:1px solid #e0e7ff;font-size:9px">总</th><th style="padding:2px;text-align:center;border:1px solid #e0e7ff;font-size:9px">斯</th><th style="padding:2px;text-align:center;border:1px solid #e0e7ff;font-size:9px">华</th><th style="padding:2px;text-align:center;border:1px solid #e0e7ff;font-size:9px">总</th><th style="padding:2px;text-align:center;border:1px solid #e0e7ff;font-size:9px">斯</th><th style="padding:2px;text-align:center;border:1px solid #e0e7ff;font-size:9px">华</th></tr>';
+f.forEach(function(p){
+h+='<tr style="border-bottom:1px solid #eee"><td style="padding:3px 4px;border:1px solid #eee;font-weight:600;color:#6366f1;cursor:pointer" onclick="showPlayerDetail(\x27'+p.n+'\x27)">'+p.n+'</td>';
+h+='<td style="padding:3px 4px;border:1px solid #eee;font-size:10px;color:#666">'+(p.tm||'').replace(/台球俱乐部/,'')+'</td>';
+h+='<td style="padding:3px 4px;border:1px solid #eee;font-size:10px;color:#888">'+(p.cat||'')+'</td>';
+h+='<td style="padding:3px 2px;border:1px solid #eee;text-align:center">'+tc(p.totG)+'</td><td style="padding:3px 2px;border:1px solid #eee;text-align:center">'+tc(p.snoG)+'</td><td style="padding:3px 2px;border:1px solid #eee;text-align:center">'+tc(p.huaG)+'</td>';
+h+='<td style="padding:3px 2px;border:1px solid #eee;text-align:center">'+tc(p.tot.team)+'</td><td style="padding:3px 2px;border:1px solid #eee;text-align:center">'+tc(p.sno.team)+'</td><td style="padding:3px 2px;border:1px solid #eee;text-align:center">'+tc(p.hua.team)+'</td>';
+h+='<td style="padding:3px 2px;border:1px solid #eee;text-align:center">'+tc(p.tot.hd)+'</td><td style="padding:3px 2px;border:1px solid #eee;text-align:center">'+tc(p.sno.hd)+'</td><td style="padding:3px 2px;border:1px solid #eee;text-align:center">'+tc(p.hua.hd)+'</td>';
+h+='<td style="padding:3px 2px;border:1px solid #eee;text-align:center">'+tc(p.tot.md)+'</td><td style="padding:3px 2px;border:1px solid #eee;text-align:center">'+tc(p.sno.md)+'</td><td style="padding:3px 2px;border:1px solid #eee;text-align:center">'+tc(p.hua.md)+'</td>';
+h+='<td style="padding:3px 2px;border:1px solid #eee;text-align:center">'+tc(p.tot.ms)+'</td><td style="padding:3px 2px;border:1px solid #eee;text-align:center">'+tc(p.sno.ms)+'</td><td style="padding:3px 2px;border:1px solid #eee;text-align:center">'+tc(p.hua.ms)+'</td>';
+h+='<td style="padding:3px 2px;border:1px solid #eee;text-align:center;font-weight:600">'+tc(p.totG)+'</td><td style="padding:3px 2px;border:1px solid #eee;text-align:center">'+tc(p.snoG)+'</td><td style="padding:3px 2px;border:1px solid #eee;text-align:center">'+tc(p.huaG)+'</td>';
+h+='<td style="padding:3px 2px;border:1px solid #eee;text-align:center;color:#2e7d32;font-weight:600">'+tc(p.winG)+'</td><td style="padding:3px 2px;border:1px solid #eee;text-align:center;color:#2e7d32">'+tc(p.snoW)+'</td><td style="padding:3px 2px;border:1px solid #eee;text-align:center;color:#2e7d32">'+tc(p.huaW)+'</td>';
+h+='<td style="padding:3px 2px;border:1px solid #eee;text-align:center;color:#c62828;font-weight:600">'+tc(p.loseG)+'</td><td style="padding:3px 2px;border:1px solid #eee;text-align:center;color:#c62828">'+tc(p.snoL)+'</td><td style="padding:3px 2px;border:1px solid #eee;text-align:center;color:#c62828">'+tc(p.huaL)+'</td>';
+h+='<td style="padding:3px 2px;border:1px solid #eee;text-align:center;font-weight:600;color:#b45309">'+(p.cent||0)+'</td></tr>';
+});
+h+='</table></div>';
+d.innerHTML=h;
+}
+
+
+function showSched(){var R=lr();var f=document.getElementById('schedDateFilter');var fv=f?f.value:'';var ms=[];SD.forEach(function(m){if(fv&&m.d!==fv)return;var v=R[m.t1+'|'+m.t2+'|'+m.d+'|'+m.p];var tA=m.t1.replace(/台球俱乐部/,'');var tB=m.t2.replace(/台球俱乐部/,'');var hd=false,ta=0,tb=0,dt=[];gd(m).forEach(function(d,i){var vd=v?v['d'+i]:null;if(!vd)return;var gs1=vd[4]||[],gs2=vd[5]||[],gw=0,gl=0;for(var gi=0;gi<5;gi++){var a=parseInt(gs1[gi])||0,b=parseInt(gs2[gi])||0;if(a||b){if(a>b)gw++;else gl++;}}if(gw>gl)ta++;else if(gl>gw)tb++;var dh=false;if(vd[2]&&vd[2].length){for(var xi=0;xi<vd[2].length;xi++){if(vd[2][xi]&&vd[2][xi]!==''){dh=true;break;}}}if(dh)hd=true;var dgs1=vd[4]||[],dgs2=vd[5]||[],dgw=0,dgl=0;for(var dgi=0;dgi<5;dgi++){var da=parseInt(dgs1[dgi])||0,db=parseInt(dgs2[dgi])||0;if(da||db){if(da>db)dgw++;else dgl++;}}dt.push({date:d.date,event:d.event,a:dgw,b:dgl,has:dh});});var grp=(gt(m.t1)||{}).g||'A';ms.push({d:m.d,tA:tA,tB:tB,ta:ta,tb:tb,type:m.p,details:dt,data:hd,grp:grp});});ms.sort(function(x,y){var c=x.d.localeCompare(y.d);return c!==0?c:x.tA.localeCompare(y.tA);});var el=document.getElementById('schedResult');if(!el)return;if(!ms.length){el.innerHTML='<div style="padding:20px;text-align:center;color:#94a3b8;font-size:13px">❌ 无匹配赛果</div>';return;}var h='<div style="font-size:11px;color:#64748b;margin-bottom:6px">共 <b>'+ms.length+'</b> 轮对抗</div>';var lg='';ms.forEach(function(mt,mi){if(mt.grp!==lg){if(lg)h+='</div>';lg=mt.grp;h+='<div style="margin-bottom:6px"><div style="font-size:11px;font-weight:700;color:#475569;padding:4px 8px;background:#f1f5f9;border-radius:6px;margin-bottom:4px">🔹 '+mt.grp+'组</div>';}var bg=mt.data?'#f0fdf4':'#fafafa';var bd=mt.data?'1px solid #bbf7d0':'1px solid #f1f5f9';var ll=mt.tA,rr=mt.tB;if(mt.ta>mt.tb){ll='<b>'+ll+'</b>';}else if(mt.tb>mt.ta){rr='<b>'+rr+'</b>';}var nm='md'+mi;h+='<div style="margin-bottom:3px">';h+='<div class="match-card" style="background:'+bg+';border:'+bd+';cursor:pointer" onclick="var e=document.getElementById(\x27'+nm+'\x27);e.style.display=e.style.display==\x27none\x27?\x27block\x27:\x27none\x27">';h+='<div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap">';h+='<span class="badge '+(mt.type==='S'?'badge-s':'badge-h')+'">'+(mt.type==='S'?'斯':'华')+'</span>';h+='<span style="font-size:12px;color:#64748b;min-width:65px">'+mt.d+'</span>';h+='<span style="font-weight:600;font-size:13px;color:#0f172a;flex:1;text-align:center">'+ll+'  vs  '+rr+'</span>';h+='<span style="font-weight:700;font-size:15px;color:'+(mt.data?'#6366f1':'#94a3b8')+';min-width:36px;text-align:center">'+(mt.data?mt.ta+':'+mt.tb:'—')+'</span>';h+='<span style="font-size:10px;color:#94a3b8;min-width:20px;text-align:right">'+(mt.data?'✅':'⏳')+'</span>';h+='</div></div>';h+='<div id="'+nm+'" style="display:none;padding:4px 8px 4px 20px;background:#fff;border-left:3px solid #e0e7ff;border-radius:0 0 6px 6px">';mt.details.forEach(function(dt){h+='<div style="display:flex;justify-content:space-between;align-items:center;padding:3px 4px;margin-bottom:1px;background:#f8fafc;border-radius:4px;font-size:11px">';h+='<span style="font-weight:600;color:#475569;min-width:50px">'+dt.date+'</span>';h+='<span style="color:#64748b;flex:1;padding:0 4px">'+dt.event+'</span>';h+='<span style="font-weight:600;color:#6366f1">'+(dt.has?dt.a+':'+dt.b:'—')+'</span>';h+='</div>';});h+='</div></div>';});if(lg)h+='</div>';el.innerHTML=h;}
+function render(){
+cs();var R=lr();var rt=document.getElementById('root');
+var ttl=TEAMS.reduce(function(s,t){return s+t.ss.length+t.hh.length+t.bb.length},0);
+var dn=0;for(var k in R)dn++;
+var h='';
+
+// OVERVIEW
+h+='<div class="card"><div class="card-hd">📊 概览</div><div class="card-bd" style="padding:10px">';
+h+='<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px">';
+['8',''+ttl,''+SD.length,''+dn,''+(SD.length-dn)].map(function(t,i){var lb=['参赛队伍','注册球员','赛程场次','已完赛','待赛'];return '<div style="text-align:center;padding:8px"><div style="font-size:20px;font-weight:800;color:#1e1b4b">'+t+'</div><div style="font-size:10px;color:#64748b;margin-top:2px">'+lb[i]+'</div></div>';}).join('')
+h+='</div></div>';
+h+='<div style="margin:-4px 0 8px;padding:8px 10px;background:#f0f4ff;border-radius:8px;font-size:10px;color:#1e40af;line-height:1.7"><b>📅 每日时序：</b><br>🔹 A组：混合团体(周三)→男单(周四)→男双(周五下午)→混双(周五晚间)<br>🔹 B组：男双(周日下午)→混双(周日晚间)→男单(周一)→混合团体(周二)</div></div>';
+
+// TEAMS
+h+='<div class="card"><div class="card-hd">🏋️ 参赛俱乐部 <span style="font-size:10px;color:#64748b;font-weight:400">(8支)</span></div><div class="card-bd" style="padding:8px">';
+h+='<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:6px">';
+['A','B'].forEach(function(g){
+  TEAMS.filter(function(t){return t.g===g}).forEach(function(t){
+    var all=t.bb.map(function(n){return {n:n,ty:'两栖'}}).concat(t.ss.map(function(n){return {n:n,ty:'斯诺克'}})).concat(t.hh.map(function(n){return {n:n,ty:'华彩'}}));
+    h+='<div style="background:#f8fafc;border-radius:8px;padding:8px;border-left:3px solid '+t.c+'">';
+    h+='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">';
+    h+='<span style="font-weight:700;font-size:12px">'+t.nm.replace(/台球俱乐部/,'')+'</span>';
+    h+='<div><span style="display:inline-block;background:'+t.c+';color:#fff;padding:1px 6px;border-radius:4px;font-size:9px;font-weight:600">'+g+'组</span>&nbsp;<span style="font-size:9px;color:#94a3b8">'+all.length+'人</span></div>';
+    h+='</div>';
+    h+='<div style="display:flex;flex-wrap:wrap;gap:2px">';
+    all.forEach(function(p){
+      var bg=p.ty==='斯诺克'?'#eef2ff':p.ty==='华彩'?'#fef3c7':'#e0e7ff';
+      var fg=p.ty==='斯诺克'?'#4338ca':p.ty==='华彩'?'#92400e':'#3730a3';
+      h+='<span style="display:inline-block;background:'+bg+';color:'+fg+';padding:1px 5px;border-radius:4px;font-size:9px;font-weight:500">'+p.n+'</span>';
+    });
+    h+='</div></div>';
+  });
+});
+h+='</div></div></div>';
+
+// PLAYER STATS
+h+='<div class="st">🏅 球员数据统计</div><div class="sb">';var PS={};
+TEAMS.forEach(function(t){ap(t.nm).forEach(function(n){PS[n]={n:n,tm:t.nm,sex:'',cat:'',tot:{ms:0,md:0,hd:0,team:0},sno:{ms:0,md:0,hd:0,team:0},hua:{ms:0,md:0,hd:0,team:0},totG:0,snoG:0,huaG:0,winG:0,snoW:0,huaW:0,loseG:0,snoL:0,huaL:0,cent:0,snoCent:0,huaCent:0};});});
+TEAMS.forEach(function(t){(t.ss||[]).forEach(function(n){if(PS[n]){PS[n].cat='斯诺克';PS[n].sex='男';}});(t.hh||[]).forEach(function(n){if(PS[n]){PS[n].cat='华彩';PS[n].sex='男';}});(t.bb||[]).forEach(function(n){if(PS[n]){PS[n].cat='斯诺克+华彩';}});});
+SD.forEach(function(m){var r=R[m.t1+'|'+m.t2+'|'+m.d+'|'+m.p];if(!r)return;var days=gd(m);var isH=m.p==='H';days.forEach(function(d,i){var v=r['d'+i];if(!v)return;var win=v[0]>v[1];var isTeam=d.event.indexOf('混合团体')>=0;var isHD=d.event.indexOf('混合双打')>=0;var isMD=d.event.indexOf('男子双打')>=0;var isMS=d.event.indexOf('男子单打')>=0;var seenPlayers={};if(v[2]&&v[2].length){var uniq2=[];v[2].forEach(function(pn){if(pn&&!seenPlayers[pn]){seenPlayers[pn]=true;uniq2.push(pn);}});uniq2.forEach(function(pn){if(!PS[pn])return;PS[pn].totG++;PS[pn][isH?'huaG':'snoG']++;if(win){PS[pn].winG++;PS[pn][isH?'huaW':'snoW']++;}else{PS[pn].loseG++;PS[pn][isH?'huaL':'snoL']++;}if(isMS){PS[pn].tot.ms++;PS[pn][isH?'hua':'sno'].ms++;}else if(isMD){PS[pn].tot.md++;PS[pn][isH?'hua':'sno'].md++;}else if(isHD){PS[pn].tot.hd++;PS[pn][isH?'hua':'sno'].hd++;}else if(isTeam){PS[pn].tot.team++;PS[pn][isH?'hua':'sno'].team++;}});}if(v[3]&&v[3].length){var uniq3=[];var seen3={};v[3].forEach(function(pn){if(pn&&!seen3[pn]){seen3[pn]=true;uniq3.push(pn);}});uniq3.forEach(function(pn){if(!PS[pn])return;PS[pn].totG++;PS[pn][isH?'huaG':'snoG']++;if(!win){PS[pn].winG++;PS[pn][isH?'huaW':'snoW']++;}else{PS[pn].loseG++;PS[pn][isH?'huaL':'snoL']++;}if(isMS){PS[pn].tot.ms++;PS[pn][isH?'hua':'sno'].ms++;}else if(isMD){PS[pn].tot.md++;PS[pn][isH?'hua':'sno'].md++;}else if(isHD){PS[pn].tot.hd++;PS[pn][isH?'hua':'sno'].hd++;}else if(isTeam){PS[pn].tot.team++;PS[pn][isH?'hua':'sno'].team++;}});}});});
+
+SD.forEach(function(m){var r=R[m.t1+'|'+m.t2+'|'+m.d+'|'+m.p];if(!r)return;var days=gd(m);var isH=m.p==='H';days.forEach(function(d,i){var v=r['d'+i];if(!v)return;var c1=v[6]||[],c2=v[7]||[];for(var ci=0;ci<5;ci++){var ca=(c1[ci]|0),cb=(c2[ci]|0);if(ca<1&&cb<1)continue;var ck=isH?'hua':'sno';if(ca>0){if(v[2]&&v[2][ci*2]){var pn=v[2][ci*2];if(pn&&PS[pn]){PS[pn].cent=(PS[pn].cent||0)+ca;PS[pn][ck+'Cent']=(PS[pn][ck+'Cent']||0)+ca;}}if(v[2]&&v[2][ci*2+1]){var pn=v[2][ci*2+1];if(pn&&PS[pn]){PS[pn].cent=(PS[pn].cent||0)+ca;PS[pn][ck+'Cent']=(PS[pn][ck+'Cent']||0)+ca;}}}else if(cb>0){if(v[3]&&v[3][ci*2]){var pn=v[3][ci*2];if(pn&&PS[pn]){PS[pn].cent=(PS[pn].cent||0)+cb;PS[pn][ck+'Cent']=(PS[pn][ck+'Cent']||0)+cb;}}if(v[3]&&v[3][ci*2+1]){var pn=v[3][ci*2+1];if(pn&&PS[pn]){PS[pn].cent=(PS[pn].cent||0)+cb;PS[pn][ck+'Cent']=(PS[pn][ck+'Cent']||0)+cb;}}}}});});
+
+SD.forEach(function(m){var r=R[m.t1+'|'+m.t2+'|'+m.d+'|'+m.p];if(!r)return;var days=gd(m);var isH=m.p==='H';days.forEach(function(d,i){var v=r['d'+i];if(!v)return;var c1=v[6]||[],c2=v[7]||[];for(var ci=0;ci<5;ci++){var ca=(c1[ci]|0),cb=(c2[ci]|0);if(ca<1&&cb<1)continue;var ck=isH?'hua':'sno';var ad=function(pn){if(!pn||!PS[pn])return;PS[pn].cent=(PS[pn].cent||0)+1;PS[pn][ck+'Cent']=(PS[pn][ck+'Cent']||0)+1;};if(v[2]&&v[2][ci*2])ad(v[2][ci*2]);if(v[2]&&v[2][ci*2+1])ad(v[2][ci*2+1]);if(v[3]&&v[3][ci*2])ad(v[3][ci*2]);if(v[3]&&v[3][ci*2+1])ad(v[3][ci*2+1]);}});});
+gAP=Object.values(PS);
+h+='<div style="padding:4px"><div style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap">';
+h+='<select id="pfTeam" style="flex:1;min-width:80px;padding:6px 8px;font-size:13px;border:1px solid #ddd;border-radius:6px"><option value="">全部俱乐部</option>';TEAMS.forEach(function(t){h+='<option value="'+t.nm+'">'+t.nm.replace(/台球俱乐部/,'')+'</option>';});h+='</select>';
+h+='<select id="pfCat" style="flex:1;min-width:70px;padding:6px 8px;font-size:13px;border:1px solid #ddd;border-radius:6px"><option value="">全部项目</option><option value="斯诺克">斯诺克</option><option value="华彩">华彩</option><option value="斯诺克+华彩">斯诺克+华彩</option></select>';
+h+='<button onclick="pfFilter()" style="padding:6px 14px;font-size:13px;background:#6366f1;color:#fff;border:none;border-radius:6px;cursor:pointer">查询</button></div>';
+h+='<div id="pfResult"><div style="padding:20px;text-align:center;color:#999;font-size:13px">请选择俱乐部和项目后点击查询</div></div>';
+h+='<div style="font-size:11px;color:#888;margin-top:6px" id="pfCnt2">选择后查询</div>';// SCHEDULE// SCHEDULEE
+h+='<div class="st">⚔️ 赛程</div><div class="sb">';
+var dranges=[],drset={};SD.forEach(function(x){if(!drset[x.d]){drset[x.d]=true;dranges.push(x.d);}});dranges.sort();
+h+='<div style="display:flex;gap:4px;margin-bottom:6px;flex-wrap:wrap;align-items:center">';
+h+='<select id="schedDateFilter" class="sh-sel" style="flex:1;min-width:100px"><option value="">📅 全部日期</option>';
+dranges.forEach(function(d){h+='<option value="'+d+'">'+d+'</option>';});h+='</select>';
+h+='<button onclick="showSched()" class="sh-btn" style="white-space:nowrap">🔍 查询</button>';
+h+='</div>';
+h+='<div id="schedResult"><div style="padding:16px;text-align:center;color:#94a3b8;font-size:13px">选择日期段后点击查询</div></div>';
+h+='</div>';
+SD.forEach(function(x){x.grp=(gt(x.t1)||{}).g||'A';});// SCORE ENTRY
+h+='<div class="st">📝 录入比分+上场球员</div><div class="sb">';
+h+='<div style="margin-bottom:6px"><select id="msel" class="sh-sel" style="width:100%;padding:6px 8px;font-size:12px"><option value="">— 请选择比赛 —</option>';
+SD.forEach(function(m){var rd=R[m.t1+'|'+m.t2+'|'+m.d+'|'+m.p];var gdd=gd(m);var allDone=true,anyDone=false;for(var ci=0;ci<gdd.length;ci++){if(rd&&rd['d'+ci]){anyDone=true;}else{allDone=false;}}var label;if(rd&&rd._done){label='✔️ ';}else if(allDone&&anyDone){label='✔️ ';}else if(anyDone){label='❌ ';}else{label='⏳ ';}label+=m.t1.replace(/台球俱乐部/,'')+' vs '+m.t2.replace(/台球俱乐部/,'')+' ('+(m.p==='S'?'🔴斯诺克':'🎱华彩')+') '+m.d;h+='<option value="'+m.t1+'|'+m.t2+'|'+m.d+'|'+m.p+'">'+label+'</option>';});
+h+='</select></div><div id="sf"></div></div>';
+
+// STANDINGS RENDER
+h+='<div class="card"><div class="card-hd">📊 俱乐部积分公示表 <span style="font-size:10px;color:#64748b;font-weight:400;margin-left:6px">(截至斯诺克第3轮)</span></div><div class="card-bd">';
+h+='<table class="excel"><thead>';
+h+='<tr><th rowspan="2" style="width:16px">组</th><th rowspan="2" style="width:16px">排名</th><th rowspan="2" style="text-align:left;padding-left:6px;width:70px">俱乐部</th><th rowspan="2" style="width:22px">积分</th><th colspan="3" style="width:48px">胜场</th><th colspan="3" style="width:48px">负场</th><th colspan="2" style="width:36px">总胜局</th><th colspan="2" style="width:36px">总负局</th><th rowspan="2" style="width:22px">总胜负率</th><th colspan="3" style="width:48px">团体赛胜场</th><th colspan="3" style="width:48px">混双胜场</th><th colspan="3" style="width:48px">男双胜场</th><th colspan="3" style="width:48px">男单胜场</th></tr>';
+h+='<tr class="sub"><th>总胜场</th><th>斯诺克</th><th>华彩</th><th>总负场</th><th>斯诺克</th><th>华彩</th><th>斯诺克</th><th>华彩</th><th>斯诺克</th><th>华彩</th><th>总胜场</th><th>斯诺克</th><th>华彩</th><th>总胜场</th><th>斯诺克</th><th>华彩</th><th>总胜场</th><th>斯诺克</th><th>华彩</th><th>总胜场</th><th>斯诺克</th><th>华彩</th></tr>';
+h+='</thead><tbody>';
+[1,2,3,4,5,6,7,8].forEach(function(idx){
+  var e=ST[idx-1];
+  if(idx===1||idx===5){h+='<tr class="group-divider"><td colspan="25" style="text-align:left;padding:4px 8px">'+(idx===1?'🔹 A 组':'🔹 B 组')+'</td></tr>';}
+  var cls=idx===1||idx===5?'rank-1':idx===2||idx===6?'rank-2':'';
+  var nm=e.team.replace(/台球俱乐部/,'');
+  var pct=(e.wr*100).toFixed(0)+'%';
+  h+='<tr class="'+cls+'">';
+  h+='<td style="font-weight:700">'+(idx<=4?'A':'B')+'</td>';
+  h+='<td style="font-weight:700">'+e.rk+'</td>';
+  h+='<td style="text-align:left;padding-left:6px;font-weight:'+(e.rk<=2?'700':'400')+'">'+nm+'</td>';
+  h+='<td style="font-weight:700;color:#6366f1">'+e.pts+'</td>';
+  h+='<td>'+e.w+'</td><td>'+e.wS+'</td><td>'+e.wH+'</td>';
+  h+='<td>'+e.l+'</td><td>'+e.lS+'</td><td>'+e.lH+'</td>';
+  h+='<td style="font-weight:600">'+e.gwS+'</td><td>'+e.gwH+'</td>';
+  h+='<td>'+e.glS+'</td><td>'+e.glH+'</td>';
+  h+='<td style="font-weight:600;font-size:10px">'+e.wr.toFixed(2)+'</td>';
+  h+='<td>'+e.tw+'</td><td>'+e.twS+'</td><td>'+e.twH+'</td>';
+  h+='<td>'+e.mdw+'</td><td>'+e.mdwS+'</td><td>'+e.mdwH+'</td>';
+  h+='<td>'+e.mbw+'</td><td>'+e.mbwS+'</td><td>'+e.mbwH+'</td>';
+  h+='<td>'+e.sdw+'</td><td>'+e.sdwS+'</td><td>'+e.sdwH+'</td>';
+  h+='</tr>';
+});
+h+='</tbody></table>';
+h+='<div style="padding:8px 10px;background:#fffbeb;border-top:1px solid #fde68a;font-size:9px;color:#92400e;line-height:1.6"><b>📋 【积分排名算法】</b><br>每项比赛获胜方计2分、失利方计1分、弃权计0分。小组赛结束后统计全队积分，按积分多少排序。若积分相同，则比较总胜负率（斯诺克比赛胜负率+华彩比赛胜负率，斯诺克比赛胜负率=总胜局数÷总负局数，华彩比赛胜负率=总胜局数÷总负局数）；如果总胜负率也相同，则比较团体赛（斯诺克+华彩）的总胜场数；如果还相同，则依次比较混双（斯诺克+华彩）、男双（斯诺克+华彩）、男单（斯诺克+华彩）的总胜场数；如果全部相同，则抽签确定名次。</div>';
+h+='</div></div>';
+// STANDINGS DELETED
+rt.innerHTML=h;
+var sel=document.getElementById('msel');if(sel)sel.onchange=sf;
+}
+function sf(){
+var val=document.getElementById('msel').value;var el=document.getElementById('sf');
+if(!val){el.innerHTML='';return;}
+var p=val.split('|');var m=SD.find(function(x){return x.t1===p[0]&&x.t2===p[1]&&x.d===p[2]&&x.p===p[3]});
+if(!m){el.innerHTML='';return;}
+var R=lr();var r=R[val]||{};var days=gd(m);var pp1=ap(m.t1),pp2=ap(m.t2);
+var h='<div style="background:linear-gradient(135deg,#1a1a2e,#16213e);color:#fff;padding:8px 10px;border-radius:8px;margin-bottom:6px;font-size:11px;display:flex;justify-content:space-between;align-items:center"><span><b>'+m.t1+'</b> vs <b>'+m.t2+'</b></span><span style="font-size:10px;color:#8899bb">'+(m.p==='S'?'🔴斯诺克':'🎱华彩十六球')+' '+m.d+'</span></div>';
+days.forEach(function(d,i){
+var pTeam=d.event.indexOf('混合团体')>=0;
+var pHD=d.event.indexOf('混合双打')>=0;
+var pMD=d.event.indexOf('男子双打')>=0;
+var pDbl=pHD||pMD;
+var pSing=!pTeam&&!pHD&&!pMD;
+var v=r['d'+i]||[0,0];
+h+='<div style="background:#f0f4ff;border:1px solid #c7d2fe;border-radius:10px;padding:6px;margin-bottom:5px">'
++'<div style="display:flex;align-items:center;gap:4px;margin-bottom:4px">'
++'<span style="font-size:10px;color:#6366f1;font-weight:700;min-width:48px">'+d.date+'</span>'
++'<span style="flex:1;font-size:11px;color:#333;font-weight:600">🔴 '+d.event+'</span>'
++'<span style="font-size:9px;color:#888">5局打满</span>'+
+  (i===0 ? (
+    '<span style="font-size:8px;color:#999;margin:0 4px">|</span>'+
+  '<span style="font-size:8px;color:#999;margin:0 4px">🧑</span>'+
+  '<select id="referee-'+val.replace(/\|/g,'_')+'-'+i+'" style="font-size:10px;padding:1px 4px;min-width:70px;border:1px solid #6366f1;border-radius:4px;background:#fff;color:#333" onchange="sf3(\x27'+val+'\x27,'+i+')"><option value="">裁判</option>'+
+  REF_FULL.map(function(rn){return '<option value="'+rn.nm+'">'+rn.nm+(rn.sex?'('+rn.sex+')':'')+'</option>';}).join('')+'</select>'+
+  '<span style="font-size:8px;color:#999;margin:0 4px">|</span>'+
+  '<span style="font-size:8px;color:#999;margin:0 4px">🔧</span>'+
+  '<select id="techrep-'+val.replace(/\|/g,'_')+'-'+i+'" style="font-size:10px;padding:1px 4px;min-width:70px;border:1px solid #6366f1;border-radius:4px;background:#fff;color:#333" onchange="sf3(\x27'+val+'\x27,'+i+')"><option value="">技代</option>'+
+  REF_FULL.map(function(rn){return '<option value="'+rn.nm+'">'+rn.nm+(rn.sex?'('+rn.sex+')':'')+'</option>';}).join('')+'</select>'
+  +'<button onclick=\"sf3(\x27'+val+'\x27,'+i+')\" style=\"padding:2px 8px;background:#4f46e5;color:#fff;border:none;border-radius:4px;font-size:9px;cursor:pointer;font-weight:600;margin-left:4px\">💾 保存</button>') : '')
+  +
+
+'</div>'
++'<div style="display:flex;align-items:center;gap:4px;justify-content:center;margin-bottom:5px;background:#e0e7ff;padding:4px 6px;border-radius:6px">'
++'<span style="font-size:9px;color:#555;font-weight:600">比分</span>'
++'<span style="font-size:9px;color:#555">'+m.t1+'</span>'
++'<span id="i-'+i+'-0" style="width:32px;text-align:center;padding:2px;font-size:13px;font-weight:700">'+(function(){var gs1=v[4]||[],gs2=v[5]||[],gw=0;for(var gi=0;gi<5;gi++){var a=parseInt(gs1[gi])||0,b=parseInt(gs2[gi])||0;if(a>0||b>0){if(a>b)gw++;}}return gw;})()+'</span>'
++'<span style="font-weight:700;color:#6366f1;font-size:12px">:</span>'
++'<span id="i-'+i+'-1" style="width:32px;text-align:center;padding:2px;font-size:13px;font-weight:700">'+(function(){var gs1=v[4]||[],gs2=v[5]||[],gl=0;for(var gi=0;gi<5;gi++){var a=parseInt(gs1[gi])||0,b=parseInt(gs2[gi])||0;if(a>0||b>0){if(b>a)gl++;}}return gl;})()+'</span>'
++'<span style="font-size:9px;color:#555">'+m.t2+'</span></div>' +
+'<div style="font-size:8px;color:red;text-align:right;margin-bottom:3px">单杆100+</div>'
+var s1=v[2]||[],s2=v[3]||[],sc1=v[4]||[],sc2=v[5]||[],c1=v[6]||[],c2=v[7]||[];
+while(s1.length<10)s1.push('');while(s2.length<10)s2.push('');
+while(sc1.length<5)sc1.push('0');while(sc2.length<5)sc2.push('0');
+while(c1.length<5)c1.push('0');while(c2.length<5)c2.push('0');
+h+='<table style="width:100%;border-collapse:collapse">'
++[0,1,2,3,4].map(function(j){
+var showSel=pTeam||j===0;
+var sv=showSel?'':'style="display:none"';
+var nSel=pDbl?2:1;
+var sel1='';for(var k=0;k<nSel;k++){
+var st=pDbl?s1[j*2+k]:s1[j];
+sel1+='<select '+sv+' id="pl-'+i+'-0-'+j+'-'+k+'" style="font-size:9px;padding:2px 4px;min-width:60px;border:1px solid #ddd;border-radius:4px;background:#fff;color:#333"><option value="">选球员</option>'+pp1.map(function(pn){return '<option value="'+pn+'"'+(st===pn?' selected':'')+'>'+pn+'</option>';}).join('')+'</select>';}
+var sel2='';for(var k=0;k<nSel;k++){
+var st=pDbl?s2[j*2+k]:s2[j];
+sel2+='<select '+sv+' id="pl-'+i+'-1-'+j+'-'+k+'" style="font-size:9px;padding:2px 4px;min-width:60px;border:1px solid #ddd;border-radius:4px;background:#fff;color:#333"><option value="">选球员</option>'+pp2.map(function(pn){return '<option value="'+pn+'"'+(st===pn?' selected':'')+'>'+pn+'</option>';}).join('')+'</select>';}
+var st1=pTeam?m.t1.replace(/台球俱乐部/,''):'';
+var st2=pTeam?m.t2.replace(/台球俱乐部/,''):'';
+return '<tr style="background:#fff"><td style="padding:2px 3px;font-size:9px;color:#6366f1;font-weight:600;border:1px solid #eee;width:14px">'+(j+1)+'</td>'
++(!pTeam?'<td style="padding:2px;border:1px solid #eee;width:26px"></td>'
+:'<td style="padding:2px;border:1px solid #eee;width:26px;font-size:8px;color:#999;text-align:right">'+st1+'</td>')
++'<td colspan="'+nSel+'" style="padding:2px;border:1px solid #eee;text-align:right">'+sel1+'</td>'
++'<td style="padding:2px;border:1px solid #eee;text-align:center;white-space:nowrap">'
++'<input type="number" min="0" max="999" value="'+sc1[j]+'" id="fr-'+i+'-0-'+j+'" oninput="updateScore('+i+')" style="width:48px;text-align:center;padding:3px;font-size:11px;border:1px solid #ccc;border-radius:4px;font-weight:600">'
++'<span style="font-size:11px;color:#999;font-weight:700;margin:0 2px">:</span>'
++'<input type="number" min="0" max="999" value="'+sc2[j]+'" id="fr-'+i+'-1-'+j+'" oninput="updateScore('+i+')" style="width:48px;text-align:center;padding:3px;font-size:11px;border:1px solid #ccc;border-radius:4px;font-weight:600">'
++'</td>'
++'<td colspan="'+nSel+'" style="padding:2px;border:1px solid #eee;text-align:left">'+sel2+'</td>'
++(!pTeam?'<td style="padding:2px;border:1px solid #eee;width:26px"></td>'
+:'<td style="padding:2px;border:1px solid #eee;width:26px;font-size:8px;color:#999;text-align:left">'+st2+'</td>')
++'<td style="padding:2px;border:1px solid #eee;text-align:center;width:36px">'
++'<input type="number" min="0" max="999" value="'+c1[j]+'" id="c-'+i+'-0-'+j+'" placeholder="100+" style="width:42px;text-align:center;padding:2px;font-size:9px;border:1px solid #fbbf24;border-radius:4px;color:#b45309;background:#fffbeb">'
++'</td><td style="padding:2px;border:1px solid #eee;text-align:center;width:36px">'
++'<input type="number" min="0" max="999" value="'+c2[j]+'" id="c-'+i+'-1-'+j+'" placeholder="100+" style="width:42px;text-align:center;padding:2px;font-size:9px;border:1px solid #fbbf24;border-radius:4px;color:#b45309;background:#fffbeb">'
++'</td></tr>';
+}).join('')+'</table></div>'+
+'<div style="margin-top:2px;text-align:right">'+
+'<button onclick=\"sf3(\x27'+val+'\x27,'+i+')\" style=\"padding:2px 7px;background:#4f46e5;color:#fff;border:none;border-radius:4px;font-size:9px;cursor:pointer\">💾 保存</button>'+
+'</div>'
+});
+// REMOVED FINAL BUTTON
+h+='';
+el.innerHTML=h;
+// Restore ref/techrep
+try{var refKey='referee_'+val;var trKey='techrep_'+val;var saved=lr();var refSaved=saved[refKey]||{};var trSaved=saved[trKey]||{};var di=0;var refEl=document.getElementById('referee-'+val.replace(/\|/g,'_')+'-'+di);if(refEl&&refSaved['d'+di])refEl.value=refSaved['d'+di];var trEl=document.getElementById('techrep-'+val.replace(/\|/g,'_')+'-'+di);if(trEl&&trSaved['d'+di])trEl.value=trSaved['d'+di];}catch(e){}
+ ref/techrep
+try{var refKey='referee_'+val;var trKey='techrep_'+val;var saved=lr();var refSaved=saved[refKey]||{};var trSaved=saved[trKey]||{};if(di===0){
+var refEl=document.getElementById('referee-'+val.replace(/\|/g,'_')+'-'+di);if(refEl&&refSaved['d'+di])refEl.value=refSaved['d'+di];var trEl=document.getElementById('techrep-'+val.replace(/\|/g,'_')+'-'+di);if(trEl&&trSaved['d'+di])trEl.value=trSaved['d'+di];
+}}catch(e){}
+us(val);
+}
+function us(val){
+var p=val.split("|");var m=SD.find(function(x){return x.t1===p[0]&&x.t2===p[1]&&x.d===p[2]&&x.p===p[3]});if(!m)return;
+var days=gd(m);var t1=0,t2=0;
+days.forEach(function(d,i){
+var s1=parseInt((document.getElementById("i-"+i+"-0")||{}).textContent)||0;
+var s2=parseInt((document.getElementById("i-"+i+"-1")||{}).textContent)||0;
+t1+=s1;t2+=s2;
+});
+var el=document.getElementById("scsum");if(el)el.innerHTML=m.t1+" "+t1+"分 : "+t2+"分 "+m.t2+" ";
+}
+function sf3(val,di){
+var p=val.split("|");var m=SD.find(function(x){return x.t1===p[0]&&x.t2===p[1]&&x.d===p[2]&&x.p===p[3]});if(!m)return;
+var days=gd(m);var key=m.t1+"|"+m.t2+"|"+m.d+"|"+m.p;var all=lr();var r=all[key]||{};
+var i=di;var d=days[i];var pHD=d.event.indexOf("混合双打")>=0;var pMD=d.event.indexOf("男子双打")>=0;var pDbl=pHD||pMD;
+var p1s=[],p2s=[],s1s=[],s2s=[],c1s=[],c2s=[];
+for(var j=0;j<5;j++){
+  var n=pDbl?2:1;
+  for(var k=0;k<n;k++){
+    var el1=document.getElementById("pl-"+i+"-0-"+j+"-"+k);if(el1)p1s.push(el1.value||"");else p1s.push("");
+    var el2=document.getElementById("pl-"+i+"-1-"+j+"-"+k);if(el2)p2s.push(el2.value||"");else p2s.push("");
+  }
+  var sc1=parseInt((document.getElementById("fr-"+i+"-0-"+j)||{}).value)||0;
+  var sc2=parseInt((document.getElementById("fr-"+i+"-1-"+j)||{}).value)||0;
+  s1s.push(sc1);s2s.push(sc2);
+  var ce1=parseInt((document.getElementById("c-"+i+"-0-"+j)||{}).value)||0;
+  var ce2=parseInt((document.getElementById("c-"+i+"-1-"+j)||{}).value)||0;
+  c1s.push(ce1);c2s.push(ce2);
+}
+r["d"+i]=[s1s.reduce(function(a,b){return a+b;},0),s2s.reduce(function(a,b){return a+b;},0),p1s.slice(),p2s.slice(),s1s.slice(),s2s.slice(),c1s.slice(),c2s.slice()];
+all[key]=r;sr(all);R=lr();
+// Save ref/techrep
+try{var refKey='referee_'+key;var trKey='techrep_'+key;var refData=all[refKey]||{};var trData=all[trKey]||{};var refEl=document.getElementById('referee-'+key.replace(/\|/g,'_')+'-'+di);if(refEl)refData['d'+di]=refEl.value;var trEl=document.getElementById('techrep-'+key.replace(/\|/g,'_')+'-'+di);if(trEl)trData['d'+di]=trEl.value;all[refKey]=refData;all[trKey]=trData;sr(all);}catch(e){}
+
+// alert("✅ 第"+(i+1)+"日比分已保存！");  // 静默保存不弹框
+us(val);
+cs();
+var selVal=document.getElementById('msel')?document.getElementById('msel').value:'';
+render();
+if(selVal){setTimeout(function(){try{document.getElementById('msel').value=selVal;sf();}catch(e){}},50);}
+// 检查4天是否都保存完
+var allR=lr(),key2=m.t1+'|'+m.t2+'|'+m.d+'|'+m.p,rd=allR[key2];
+var days2=gd(m);
+var allDone=true;
+for(var ci=0;ci<days2.length;ci++){if(!rd||!rd['d'+ci]){allDone=false;break;}}
+if(allDone){try{var fb=document.getElementById('finalBtn');if(fb){fb.textContent='✅ 完成录入';fb.style.background='#16a34a';fb.onclick=function(){var sel0=document.getElementById('msel');var v0=sel0?sel0.value:'';if(v0){var all0=lr();var rd0=all0[v0]||{};rd0._done=true;all0[v0]=rd0;sr(all0);}render();alert('✅ 比赛已完成录入！');}}}catch(e){}}
+}
+
+function cs(){
+var R=lr();
+ST.forEach(function(e){e.pts=0;e.w=0;e.wS=0;e.wH=0;e.l=0;e.lS=0;e.lH=0;e.gwS=0;e.gwH=0;e.glS=0;e.glH=0;e.wr=0;e.tw=0;e.twS=0;e.twH=0;e.mdw=0;e.mdwS=0;e.mdwH=0;e.mbw=0;e.mbwS=0;e.mbwH=0;e.sdw=0;e.sdwS=0;e.sdwH=0;});
+SD.forEach(function(m){
+var r=R[m.t1+'|'+m.t2+'|'+m.d+'|'+m.p];if(!r)return;
+var isH=m.p==='H';var days=gd(m);
+days.forEach(function(d,i){
+var v=r['d'+i];if(!v)return;
+var e1=ST.find(function(x){return x.team===m.t1;});
+var e2=ST.find(function(x){return x.team===m.t2;});
+if(!e1||!e2)return;
+var sc1=v[0]||0,sc2=v[1]||0;
+var isTeam=d.event.indexOf('混合团体')>=0;
+var isHD=d.event.indexOf('混合双打')>=0;
+var isMD=d.event.indexOf('男子双打')>=0;
+var isMS=d.event.indexOf('男子单打')>=0;
+var s1=v[4]||[],s2=v[5]||[];
+var gs1=0,gs2=0;
+for(var j=0;j<5;j++){var a=parseInt(s1[j])||0,b=parseInt(s2[j])||0;if(a>b)gs1++;else if(b>a)gs2++;}
+if(isH){
+  e1.gwH+=gs1;e1.glH+=gs2;e2.gwH+=gs2;e2.glH+=gs1;
+  e1.wH+=sc1>sc2?1:0;e1.lH+=sc1>sc2?0:1;e2.wH+=sc2>sc1?1:0;e2.lH+=sc2>sc1?0:1;
+}else{
+  e1.gwS+=gs1;e1.glS+=gs2;e2.gwS+=gs2;e2.glS+=gs1;
+  e1.wS+=sc1>sc2?1:0;e1.lS+=sc1>sc2?0:1;e2.wS+=sc2>sc1?1:0;e2.lS+=sc2>sc1?0:1;
+}
+if(isTeam){e1.tw+=sc1>sc2?1:0;if(isH)e1.twH++;else e1.twS++;e2.tw+=sc2>sc1?1:0;if(isH)e2.twH++;else e2.twS++;}
+if(isHD){e1.mdw+=sc1>sc2?1:0;if(isH)e1.mdwH++;else e1.mdwS++;e2.mdw+=sc2>sc1?1:0;if(isH)e2.mdwH++;else e2.mdwS++;}
+if(isMD){e1.mbw+=sc1>sc2?1:0;if(isH)e1.mbwH++;else e1.mbwS++;e2.mbw+=sc2>sc1?1:0;if(isH)e2.mbwH++;else e2.mbwS++;}
+if(isMS){e1.sdw+=sc1>sc2?1:0;if(isH)e1.sdwH++;else e1.sdwS++;e2.sdw+=sc2>sc1?1:0;if(isH)e2.sdwH++;else e2.sdwS++;}
+});
+});
+ST.forEach(function(e){
+e.w=e.wS+e.wH;e.l=e.lS+e.lH;
+e.pts=e.w*2+e.l*1;
+e.wr=(e.glS+e.glH+e.gwS+e.gwH)>0?(e.gwS+e.gwH)/(e.glS+e.glH):0;
+});
+ST.sort(function(a,b){if(a.pts!==b.pts)return b.pts-a.pts;if(a.wr!==b.wr)return b.wr-a.wr;return 0;});
+ST.forEach(function(e,i){e.rk=(i<4?i+1:i-3);});
+}
+
+function sf2(val){
+var p=val.split("|");var m=SD.find(function(x){return x.t1===p[0]&&x.t2===p[1]&&x.d===p[2]&&x.p===p[3]});if(!m)return;
+var days=gd(m);var r={};
+days.forEach(function(d,i){
+  var pHD=d.event.indexOf("混合双打")>=0;var pMD=d.event.indexOf("男子双打")>=0;var pDbl=pHD||pMD;
+  var p1s=[],p2s=[],s1s=[],s2s=[],c1s=[],c2s=[];
+  for(var j=0;j<5;j++){
+    var n=pDbl?2:1;
+    for(var k=0;k<n;k++){
+      var el1=document.getElementById("pl-"+i+"-0-"+j+"-"+k);if(el1)p1s.push(el1.value||"");else p1s.push("");
+      var el2=document.getElementById("pl-"+i+"-1-"+j+"-"+k);if(el2)p2s.push(el2.value||"");else p2s.push("");
+    }
+    var sc1=parseInt((document.getElementById("fr-"+i+"-0-"+j)||{}).value)||0;
+    var sc2=parseInt((document.getElementById("fr-"+i+"-1-"+j)||{}).value)||0;
+    s1s.push(sc1);s2s.push(sc2);
+    var ce1=parseInt((document.getElementById("c-"+i+"-0-"+j)||{}).value)||0;
+    var ce2=parseInt((document.getElementById("c-"+i+"-1-"+j)||{}).value)||0;
+    c1s.push(ce1);c2s.push(ce2);
+  }
+  r["d"+i]=[s1s.reduce(function(a,b){return a+b;},0),s2s.reduce(function(a,b){return a+b;},0),p1s.slice(),p2s.slice(),s1s.slice(),s2s.slice(),c1s.slice(),c2s.slice()];
+});
+var key=m.t1+"|"+m.t2+"|"+m.d+"|"+m.p;var all=lr();all[key]=r;sr(all);R=lr();
+alert("✅ 比分已保存！砂");saveCloud().then(function(){ render(); }).catch(function(e){ console.log("云端同步失败:", e); render(); });
+us(val);
+cs();
+function updateScore(i){var t1=0,t2=0;for(var j=0;j<5;j++){var a=parseInt((document.getElementById("fr-"+i+"-0-"+j)||{}).value)||0;var b=parseInt((document.getElementById("fr-"+i+"-1-"+j)||{}).value)||0;if(a>b)t1++;if(b>a)t2++;}var e1=document.getElementById("i-"+i+"-0");if(e1)e1.textContent=t1;var e2=document.getElementById("i-"+i+"-1");if(e2)e2.textContent=t2;}
+render();
+
+var sel=document.getElementById("msel");if(sel){sel.options[sel.selectedIndex].text="✅ "+sel.options[sel.selectedIndex].text.substring(2);}
+};
+
+
+render();
+function exportData(){
+  var data=lr();
+  var json=JSON.stringify(data,null,2);
+  var blob=new Blob([json],{type:'application/json'});
+  var a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='cbl_data_' + new Date().toISOString().slice(0,10) + '.json';
+  a.click();
+  alert('数据已导出！');
+}
+
+
+// ===== 云端调试面板 =====
+function cblForceSync() {
+  var status = document.getElementById('cblDebugStatus');
+  status.textContent = '⏳ 同步中...';
+  // 先 push 到云端
+  var local = lr();
+  fetch('/api/data', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(local)
+  }).then(function(r) { return r.text(); }).then(function(t) {
+    console.log('[CBL云端] 上传完成:', t);
+    // 再从云端拉取
+    return fetch('/api/data');
+  }).then(function(r) { return r.json(); }).then(function(d) {
+    console.log('[CBL云端] 下载数据条数:', Object.keys(d).length, d);
+    sr(d);
+    document.getElementById('cblDebugStatus').textContent = '✅ 同步成功 (' + Object.keys(d).length + '条)';
+    document.getElementById('cblDebugDataCount').textContent = '📦 ' + Object.keys(d).length + '条';
+    render();
+  }).catch(function(e) {
+    document.getElementById('cblDebugStatus').textContent = '❌ 同步失败: ' + e.message;
+    console.error('[CBL云端] 失败:', e);
+  });
+}
+// 页面加载时检测云端状态
+(function() {
+  var status = document.getElementById('cblDebugStatus');
+  fetch('/api/data').then(function(r) { return r.json(); }).then(function(d) {
+    var cnt = Object.keys(d).length;
+    console.log('[CBL云端] 云端有 ' + cnt + ' 条数据');
+    document.getElementById('cblDebugDataCount').textContent = '📦 ' + cnt + '条';
+    if (cnt > 0) {
+      status.textContent = '☁️ 已连接';
+    } else {
+      status.textContent = '☁️ 已连接(无数据)';
+    }
+  }).catch(function(e) {
+    status.textContent = '❌ 连接失败: ' + e.message;
+    console.error('[CBL云端] 连接失败:', e);
+  });
+})();
+
+// 密码页也显示云端状态
+(function() {
+  var dbg = document.getElementById('cblDebug2');
+  if (!dbg) return;
+  fetch('/api/data').then(function(r) { return r.json(); }).then(function(d) {
+    var cnt = Object.keys(d).length;
+    dbg.textContent = '☁️ 云端已连接 | 云端数据: ' + cnt + ' 条';
+    var dbg1 = document.getElementById('cblDebugStatus');
+    if (dbg1) dbg1.textContent = '☁️ 已连接';
+    var dbg2 = document.getElementById('cblDebugDataCount');
+    if (dbg2) dbg2.textContent = '📦 ' + cnt + '条';
+  }).catch(function(e) {
+    dbg.textContent = '❌ 云端连接失败: ' + e.message;
+    var dbg1 = document.getElementById('cblDebugStatus');
+    if (dbg1) dbg1.textContent = '❌ 连接失败';
+  });
+})();
+
+// ===== 密码认证 =====
+var _PWD = 'cbl2026';
+var _authPassed = false;
+function verifyPwd() {
+  var input = document.getElementById('pwdInput');
+  var error = document.getElementById('pwdError');
+  if (input.value === _PWD) {
+    _authPassed = true;
+    document.getElementById('pwdOverlay').style.display = 'none';
+    document.getElementById('root').style.display = 'block';
+    loadCloud().then(function(d) {
+    if (d && Object.keys(d).length > 0) {
+      console.log('[CBL] 云端数据已生效');
+    }
+    render();
+  }).catch(function(e) {
+    console.log('[CBL] 云端加载失败，使用本地数据', e);
+    render();
+  });
+  } else {
+    error.textContent = '密码错误，请重试';
+    input.value = '';
+    input.focus();
+    setTimeout(function() { error.textContent = ''; }, 2000);
+  }
+}
+
+// ===== 云端同步 =====
+
+async function loadCloud() {
+  try {
+    var r = await fetch('/api/data');
+    var d = await r.json();
+    if (Object.keys(d).length > 0) {
+      sr(d);
+      console.log('云端数据已加载: ' + Object.keys(d).length + ' 条');
+    } else {
+      console.log('云端数据为空');
+    }
+    return d;
+  } catch(e) {
+    console.log('云同步失败:', e);
+    return {};
+  }
+}
+async function saveCloud() {
+  try {
+    var local = lr();
+    await fetch('/api/data', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(local)
+    });
+  } catch(e) {
+    console.log('云端保存失败:', e);
+  }
+}
+// 保存时同步云端 - 包装 sr 函数
+var _origSr = sr;
+sr = function(r) {
+  _origSr(r);
+  saveCloud();
+};
+
+// 覆盖已有的 render() 调用 - 不在页面加载时自动渲染
+// 注释掉原有的 DOMContentLoaded 相关的代码
+
+
+
+// ===== 云同步 =====
+async function loadCloud() {
+  try {
+    var r = await fetch('/api/data');
+    var d = await r.json();
+    console.log('[CBL] 云端返回数据键数:', Object.keys(d).length);
+    if (Object.keys(d).length > 0) {
+      // 强制用云端数据覆盖所有本地数据
+      localStorage.setItem(K, JSON.stringify(d));
+      console.log('[CBL] 云端数据已写入localStorage');
+    } else {
+      console.log('[CBL] 云端数据为空，保留本地');
+    }
+    return d;
+  } catch(e) {
+    console.log('[CBL] 云同步失败:', e);
+    return {};
+  }
+}
+
+</script>
+</body>
+</html>
