@@ -547,14 +547,14 @@ function cblForceSync() {
   status.textContent = '⏳ 同步中...';
   // 先 push 到云端
   var local = lr();
-  fetch('/api/data', {
+  fetch('https://cbl-data-api.kennyho239.workers.dev/api/data', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(local)
   }).then(function(r) { return r.text(); }).then(function(t) {
     console.log('[CBL云端] 上传完成:', t);
     // 再从云端拉取
-    return fetch('/api/data');
+    return fetch('https://cbl-data-api.kennyho239.workers.dev/api/data');
   }).then(function(r) { return r.json(); }).then(function(d) {
     console.log('[CBL云端] 下载数据条数:', Object.keys(d).length, d);
     sr(d);
@@ -569,7 +569,7 @@ function cblForceSync() {
 // 页面加载时检测云端状态
 (function() {
   var status = document.getElementById('cblDebugStatus');
-  fetch('/api/data').then(function(r) { return r.json(); }).then(function(d) {
+  fetch('https://cbl-data-api.kennyho239.workers.dev/api/data').then(function(r) { return r.json(); }).then(function(d) {
     var cnt = Object.keys(d).length;
     console.log('[CBL云端] 云端有 ' + cnt + ' 条数据');
     document.getElementById('cblDebugDataCount').textContent = '📦 ' + cnt + '条';
@@ -588,7 +588,7 @@ function cblForceSync() {
 (function() {
   var dbg = document.getElementById('cblDebug2');
   if (!dbg) return;
-  fetch('/api/data').then(function(r) { return r.json(); }).then(function(d) {
+  fetch('https://cbl-data-api.kennyho239.workers.dev/api/data').then(function(r) { return r.json(); }).then(function(d) {
     var cnt = Object.keys(d).length;
     dbg.textContent = '☁️ 云端已连接 | 云端数据: ' + cnt + ' 条';
     var dbg1 = document.getElementById('cblDebugStatus');
@@ -633,7 +633,7 @@ function verifyPwd() {
 
 async function loadCloud() {
   try {
-    var r = await fetch('/api/data');
+    var r = await fetch('https://cbl-data-api.kennyho239.workers.dev/api/data');
     var d = await r.json();
     if (Object.keys(d).length > 0) {
       sr(d);
@@ -650,7 +650,7 @@ async function loadCloud() {
 async function saveCloud() {
   try {
     var local = lr();
-    await fetch('/api/data', {
+    await fetch('https://cbl-data-api.kennyho239.workers.dev/api/data', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(local)
@@ -674,7 +674,7 @@ sr = function(r) {
 // ===== 云同步 =====
 async function loadCloud() {
   try {
-    var r = await fetch('/api/data');
+    var r = await fetch('https://cbl-data-api.kennyho239.workers.dev/api/data');
     var d = await r.json();
     console.log('[CBL] 云端返回数据键数:', Object.keys(d).length);
     if (Object.keys(d).length > 0) {
